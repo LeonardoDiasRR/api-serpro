@@ -151,6 +151,56 @@ def consultar_cnpj(
     return response.json()
 
 
+def _enrich_response(data: dict) -> dict:
+    """Add descriptive labels for coded fields in the API response.
+
+    Enriches the response in-place with human-readable descriptions for:
+      - socios[].qualificacao       → codigo_qualificacao + descricao_qualificacao
+      - socios[].tipoSocio           → descricao_tipo_socio
+      - socios[].representanteLegal.qualificacao → descricao_qualificacao
+      - situacaoCadastral.codigo     → descricao_situacao
+      - naturezaJuridica.codigo      → (already returns descricao)
+      - tipoEstabelecimento          → descricao_tipo_estabelecimento
+      - porte                         → descricao_porte
+    """
+    # --- Tipo de Estabelecimento ---
+    _TIPO_ESTABELECIMENTO = {"1": "Matriz", "2": "Filial"}
+    te = data.get("tipoEstabelecimento", "")
+    if te in _TIPO_ESTABELECIMENTO:
+        data["descricao_tipo_estabelecimento"] = _TIPO_ESTABELECIMENTO[te]
+
+    # --- Porte ---
+    _PORTE = {"01": "Microempresa (ME)", "03": "Empresa de Pequeno Porte (EPP)", "05": "Demais empresas"}
+    po = data.get("porte", "")
+    if po in _PORTE:
+        data["descricao_porte"] = _PORTE[po]
+
+    # --- Situação Cadastral ---
+    sc = data.get("situacaoCadastral", {})
+    if sc and sc.get("codigo") in _SITUACAO_CNPJ:
+        sc["descricao"] = _SITUACAO_CNPJ[sc["codigo"]]
+
+    # --- Sócios ---
+    socios = data.get("socios", [])
+    for s in socios:
+        q = s.get("qualificacao", "")
+        if q in _QUALIFICACAO_SOCIO:
+            s["codigo_qualificacao"] = q
+            s["descricao_qualificacao"] = _QUALIFICACAO_SOCIO[q]
+
+        ts = s.get("tipoSocio", "")
+        if ts in _TIPO_SOCIO:
+            s["descricao_tipo_socio"] = _TIPO_SOCIO[ts]
+
+        rl = s.get("representanteLegal", {})
+        if rl:
+            rq = rl.get("qualificacao", "")
+            if rq in _QUALIFICACAO_SOCIO:
+                rl["descricao_qualificacao"] = _QUALIFICACAO_SOCIO[rq]
+
+    return data
+
+
 def _fmt_date(d: str) -> str:
     """Convert YYYY-MM-DD to DD/MM/YYYY."""
     if not d:
@@ -211,50 +261,56 @@ def _fmt_situacao(situacao: dict, include_date: bool = False) -> str:
     return result
 
 
-def _print_formatted(data: dict, endpoint: str) -> None:
+def _fmt_cnpj(cnpj: str) -> str:
+    """Format 14 digits as XX.XXX.XXX/XXXX-XX."""
+    n = re.sub(r"[^0-9]", "", cnpj)
+    if len(n) != 14:
+        return cnpj
+    return f"{n[:2]}.{n[2:5]}.{n[5:8]}/{n[8:12]}-{n[12:]}"
+
+
+def _print_formatted(data: dict, endpoint: str, cnpj: str = "") -> None:
     """Print human-readable output for basica, qsa, or empresa endpoints."""
     end = data.get("endereco", {})
-    telefones = data.get("telefones", [])
-    tel = _fmt_telefone(telefones[0]["ddd"], telefones[0]["numero"]) if telefones else ""
-    cnae = data.get("cnaePrincipal", {})
     is_basica = endpoint == "basica"
 
-    print(f"Razão Social:\t{data.get('nomeEmpresarial', '')}")
-    print(f"Nome Fantasia:\t{data.get('nomeFantasia', '')}")
-    print(f"Situação:\t{_fmt_situacao(data.get('situacaoCadastral', {}), include_date=not is_basica)}")
+    # Cabeçalho
+    print(f"CNPJ: {_fmt_cnpj(cnpj)}")
+    print(f"Razão social: {data.get('nomeEmpresarial', '')}")
+    print(f"Nome Fantasia: {data.get('nomeFantasia', '')}")
 
-    if is_basica:
-        print(f"Abertura:\t{_fmt_date(data.get('dataAbertura', ''))}")
+    # Situação
+    sc = data.get("situacaoCadastral", {})
+    situacao_desc = _SITUACAO_CNPJ.get(sc.get("codigo", ""), "").upper()
+    situacao_data = _fmt_date(sc.get("data", "")) if sc.get("data") else ""
+    if situacao_desc and situacao_data:
+        print(f"Situação: {situacao_desc} (desde {situacao_data})")
     else:
-        nat = data.get("naturezaJuridica", {})
-        if nat.get("descricao"):
-            print(f"Natureza Jurídica:\t{nat['descricao']}")
+        print(f"Situação: {situacao_desc}")
 
-    cnae_desc = cnae.get("descricao", "")
-    if not is_basica:
-        cnae_desc += f" ({cnae.get('codigo', '')})"
-    print(f"CNAE Principal:\t{cnae_desc}")
+    # Endereço (com travessão)
+    addr = _fmt_endereco(end, include_cep=True)
+    if " — " not in addr:
+        addr = addr.replace(" - ", " — ")
+    print(f"Endereço: {addr}")
+    print(f"Capital Social: {_fmt_capital(data.get('capitalSocial', 0))}")
 
-    print(f"Endereço:\t{_fmt_endereco(end, include_cep=not is_basica)}")
-    print(f"Telefone:\t{tel}")
-    print(f"E-mail:\t{data.get('correioEletronico', '')}")
-    print(f"Capital Social:\t{_fmt_capital(data.get('capitalSocial', 0))}")
-
+    # Quadro de Sócios
     if endpoint in ("qsa", "empresa"):
         socios = data.get("socios", [])
         if socios:
             print()
-            print("Sócios:")
-            for s in socios:
-                qual = _QUALIFICACAO_SOCIO.get(s.get("qualificacao", ""), s.get("qualificacao", ""))
-                tipo = _TIPO_SOCIO.get(s.get("tipoSocio", ""), s.get("tipoSocio", ""))
-                print(f"{s.get('nome', '')}\t{qual}\t{tipo}")
-
-        info = data.get("informacoesAdicionais", {})
-        if info:
+            print("---")
             print()
-            print(f"Optante pelo Simples: {info.get('optanteSimples', '')}")
-            print(f"Optante pelo MEI: {info.get('optanteMei', '')}")
+            print("Quadro de Sócios:")
+            print()
+            for s in socios:
+                qual = _QUALIFICACAO_SOCIO.get(
+                    s.get("qualificacao", ""), s.get("qualificacao", "")
+                )
+                print(f"**{s.get('nome', '')}**")
+                print(f"• Qualificação: {qual}")
+                print()
 
 
 def main() -> None:
@@ -289,7 +345,7 @@ def main() -> None:
         elif args.output_json:
             print(json.dumps(resultado, ensure_ascii=False))
         else:
-            _print_formatted(resultado, args.endpoint)
+            _print_formatted(resultado, args.endpoint, cnpj=args.cnpj)
     except Exception as exc:
         print(f"Erro: {exc}", file=sys.stderr)
         sys.exit(1)
