@@ -86,15 +86,26 @@ Use a flag `--trial`. Não requer contrato ativo. CNPJs e CPFs fictícios dispon
 |---|---|
 | 40442820135 | Regular |
 | 63017285995 | Regular |
+| 91708635203 | Regular |
+| 58136053391 | Regular |
 | 40532176871 | Suspensa |
+| 47123586964 | Suspensa |
 | 07691852312 | Pendente de Regularização |
+| 10975384600 | Pendente de Regularização |
 | 01648527949 | Cancelada por Multiplicidade |
+| 47893062592 | Cancelada por Multiplicidade |
 | 98302514705 | Nula |
+| 18025346790 | Nula |
 | 64913872591 | Cancelada de Ofício |
+| 52389071686 | Cancelada de Ofício |
 | 05137518743 | Titular Falecido |
+| 08849979878 | Titular Falecido |
 | 30272095079 | Menor de 18 anos (HTTP 422) |
+| 14898746071 | Menor de 18 anos (HTTP 422) |
 | 20803407009 | Menor de 16 anos (HTTP 451) |
+| 78411139000 | Menor de 16 anos (HTTP 451) |
 | 88373571094 | Conteúdo Parcial (HTTP 206) |
+| 47460609080 | Conteúdo Parcial (HTTP 206) |
 
 ## Estrutura do Projeto
 
