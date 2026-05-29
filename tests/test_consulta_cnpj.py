@@ -8,10 +8,78 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from consulta_cnpj import (
     _check_response,
+    _fmt_capital,
+    _fmt_date,
+    _fmt_endereco,
+    _fmt_situacao,
+    _fmt_telefone,
     consultar_cnpj,
     limpar_cnpj,
     validar_cnpj,
 )
+
+
+def test_fmt_date_converts_iso_to_br():
+    assert _fmt_date("2013-04-30") == "30/04/2013"
+
+
+def test_fmt_date_returns_empty_for_empty_input():
+    assert _fmt_date("") == ""
+
+
+def test_fmt_capital_divides_by_100_and_formats():
+    assert _fmt_capital(2000000) == "R$ 20.000,00"
+    assert _fmt_capital(52000000) == "R$ 520.000,00"
+    assert _fmt_capital(10000) == "R$ 100,00"
+
+
+def test_fmt_telefone_8_digits():
+    assert _fmt_telefone("95", "81021111") == "(95) 8102-1111"
+
+
+def test_fmt_telefone_9_digits():
+    assert _fmt_telefone("11", "987654321") == "(11) 98765-4321"
+
+
+def test_fmt_endereco_basica_without_cep():
+    end = {
+        "tipoLogradouro": "AVENIDA",
+        "logradouro": "VILLE ROY",
+        "numero": "1166",
+        "complemento": "LOJA 02",
+        "bairro": "CACARI",
+        "municipio": {"descricao": "BOA VISTA"},
+        "uf": "RR",
+        "cep": "69307725",
+    }
+    result = _fmt_endereco(end, include_cep=False)
+    assert result == "Av. Ville Roy, 1166 - Loja 02, Cacari, Boa Vista/RR"
+
+
+def test_fmt_endereco_qsa_with_cep():
+    end = {
+        "tipoLogradouro": "RUA",
+        "logradouro": "PEDRINHO FILHO",
+        "numero": "70",
+        "complemento": "B SALA C",
+        "bairro": "CENTRO",
+        "municipio": {"descricao": "BOA VISTA"},
+        "uf": "RR",
+        "cep": "69301240",
+    }
+    result = _fmt_endereco(end, include_cep=True)
+    assert "Rua Pedrinho Filho, 70" in result
+    assert "CEP 69301-240" in result
+
+
+def test_fmt_situacao_without_date():
+    sit = {"codigo": "2", "data": "2013-04-30"}
+    assert _fmt_situacao(sit) == "Ativa (código 2)"
+
+
+def test_fmt_situacao_with_date():
+    sit = {"codigo": "2", "data": "2019-09-05"}
+    assert _fmt_situacao(sit, include_date=True) == "Ativa (código 2) desde 05/09/2019"
 
 
 def test_limpar_cnpj_removes_formatting():
