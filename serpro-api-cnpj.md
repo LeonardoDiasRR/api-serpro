@@ -234,6 +234,7 @@ GET https://gateway.apiserpro.serpro.gov.br/consulta-cnpj-df/v2/empresa/{ni}
 | `cnaePrincipal.descricao`          | Descrição CNAE principal                               | x       | x    | x        |
 | `cnaeSecundarias`                  | Lista de CNAEs secundários                             | x       | x    | x        |
 | `endereco.*`                       | Endereço completo (logradouro, CEP, município, UF)     | x       | x    | x        |
+| `municipioJurisdicao`              | Município de jurisdição fiscal                         | x       | x    | x        |
 | `telefones`                        | Lista de telefones (ddd + número)                      | x       | x    | x        |
 | `correioEletronico`                | E-mail da empresa                                      | x       | x    | x        |
 | `capitalSocial`                    | Capital social ÷ 100 = valor real em R$                | x       | x    | x        |
