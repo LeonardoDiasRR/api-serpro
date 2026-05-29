@@ -117,6 +117,13 @@ def test_consultar_cpf_raises_on_400():
                 consultar_cpf("40442820135")
 
 
+def test_consultar_cpf_raises_on_406_invalid_accept():
+    with patch("consulta_cpf.obter_token", return_value="tok"):
+        with patch("consulta_cpf.requests.get", return_value=_mock_response(406)):
+            with pytest.raises(RuntimeError, match="Accept"):
+                consultar_cpf("40442820135")
+
+
 def test_check_response_allows_206():
     _check_response(_mock_response(206))  # must not raise
 
