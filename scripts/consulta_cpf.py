@@ -92,6 +92,40 @@ def consultar_cpf(cpf: str, trial: bool = False) -> dict:
     return response.json()
 
 
+def _fmt_cpf(numero: str) -> str:
+    """Format 11 digits as XXX.XXX.XXX-XX."""
+    n = re.sub(r"[^0-9]", "", numero)
+    if len(n) != 11:
+        return numero
+    return f"{n[:3]}.{n[3:6]}.{n[6:9]}-{n[9:]}"
+
+
+def _fmt_date_ddmmyyyy(data: str) -> str:
+    """Convert DDMMYYYY to DD/MM/YYYY."""
+    if not data or len(data) != 8 or not data.isdigit():
+        return data
+    return f"{data[:2]}/{data[2:4]}/{data[4:]}"
+
+
+def _print_formatted(data: dict, cpf: str = "") -> None:
+    """Print human-readable output for CPF consultation."""
+    print(f"CPF: {_fmt_cpf(cpf)}")
+    print(f"Nome: {data.get('nome', '')}")
+
+    sit = data.get("situacao", {})
+    descricao = sit.get("descricao", "")
+    if descricao:
+        print(f"Situação: {descricao}")
+
+    nasc = _fmt_date_ddmmyyyy(data.get("nascimento", ""))
+    if nasc:
+        print(f"Nascimento: {nasc}")
+
+    insc = _fmt_date_ddmmyyyy(data.get("dataInscricao", ""))
+    if insc:
+        print(f"Inscrição desde: {insc}")
+
+
 def main() -> None:
     """CLI entry point for CPF consultation."""
     parser = argparse.ArgumentParser(description="Consulta CPF na API do SERPRO")
@@ -102,7 +136,10 @@ def main() -> None:
 
     try:
         resultado = consultar_cpf(cpf=args.cpf, trial=args.trial)
-        print(json.dumps(resultado, ensure_ascii=False, indent=2 if args.pretty else None))
+        if args.pretty:
+            print(json.dumps(resultado, ensure_ascii=False, indent=2))
+        else:
+            _print_formatted(resultado, cpf=args.cpf)
     except Exception as exc:
         print(f"Erro: {exc}", file=sys.stderr)
         sys.exit(1)
